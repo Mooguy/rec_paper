@@ -1,0 +1,52 @@
+# --- Biological Data (Exclude all large files) ---
+data/external/
+data/raw/
+data/interim/
+data/processed/
+
+# --- Archives & Backups ---
+*.zip
+archive/
+
+# --- Results & Figures ---
+figures/panels/
+
+# --- Models (Exclude trained weights and massive logs) ---
+models/
+*.pkl
+*.npy
+*.h5ad
+*.mat
+*.tar.gz
+
+# --- Python & Build Artifacts ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# --- R & MATLAB Artifacts ---
+.Rhistory
+.RData
+.Rapp.history
+*.asv
+
+# --- HPC & Logs ---
+*.log
+scripts/shell/*.log
+scripts/shell/*.out
+scripts/shell/*.err
+
+# --- Environment & IDEs ---
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.env
+venv/
+rec_paper_env/
+
+# --- OS Junk ---
+.DS_Store
