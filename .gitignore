@@ -3,6 +3,7 @@ data/external/
 data/raw/
 data/interim/
 data/processed/
+data/processed_old/
 
 # --- Archives & Backups ---
 *.zip
@@ -50,3 +51,6 @@ rec_paper_env/
 
 # --- OS Junk ---
 .DS_Store
+
+# old generated outputs
+
