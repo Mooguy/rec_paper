@@ -6,7 +6,7 @@ import pandas as pd
 import logging
 
 from pathlib import Path
-from src.models.XGBoostTrainer import XGBoostTrainer
+from src.training.XGBoostTrainer import XGBoostTrainer
 
 # Resolve the root directory
 BASE_DIR = Path(__file__).resolve().parent.parent 

@@ -243,137 +243,134 @@ def prepare_go_terms_for_plotting(goa_dict):
 # Plotting functions:
 ##############################################################################
 
-def plot_go_term_groups(
+
+def plot_go_term_groups_updated(
     goa_dict,
-    cluster,
-    plotsize=(9, 8),
+    clusters,
+    plotsize=(6, 4),          # size of ONE dot-plot square, in inches (width, height)
     legend_location=(1.4, 1),
     ymargin=0.075,
     save=False,
     top_n=None,
 ):
-    # Define the colors and their positions
+    if not isinstance(clusters, (list, tuple)):
+        clusters = [clusters]
+    assert 1 <= len(clusters) <= 2, "Only 1 or 2 clusters supported"
+
+    n = len(clusters)
+    ax_w_in, ax_h_in = plotsize   # fixed physical size of the dots box
+
+    # Fixed margins in INCHES -- constant regardless of n
+    left_in, right_margin_in = 1.6, 1.8   # space for y-labels / cbar+legend
+    top_in, bottom_in = 0.6, 0.6
+    hspace_in = 0.5
+
+    fig_w = left_in + ax_w_in + right_margin_in
+    fig_h = top_in + n * ax_h_in + (n - 1) * hspace_in + bottom_in
+
     colors = ["blue", "purple", "red"]
     nodes = [0.0, 0.5, 1.0]
     cmap_blue_to_red = LinearSegmentedColormap.from_list(
         "blue_to_red", list(zip(nodes, colors))
-    )
-    cmap_blue_to_red = cmap_blue_to_red.reversed()
+    ).reversed()
 
-    # Get the data for cluster
-    cluster_data = goa_dict.get(cluster).go_sim_group_summary.copy()
+    fig = plt.figure(figsize=(fig_w, fig_h))
 
-    # If top_n is specified, select top N groups
-    if top_n is not None:
-        cluster_data = cluster_data.sort_values(
-            by=[
-                "gene_ratio",
-                "combined_score",
-                "adjusted_p_value",
-                "term_count",
-                "term_depth",
-            ],
-            ascending=[False, False, True, False, False],
-        ).head(top_n)
+    # Convert fixed inch geometry -> fractions of THIS figure
+    left = left_in / fig_w
+    ax_width_frac = ax_w_in / fig_w
+    ax_height_frac = ax_h_in / fig_h
+    hspace_frac = hspace_in / fig_h
+    top = 1 - top_in / fig_h
+    cbar_left = left + ax_width_frac + 0.05 * ax_width_frac
+    cbar_width = 0.04
 
-    cluster_data = cluster_data.iloc[::-1]
+    all_data = []
+    for cluster in clusters:
+        cluster_data = goa_dict.get(cluster).go_sim_group_summary.copy()
+        if top_n is not None:
+            cluster_data = cluster_data.sort_values(
+                by=["gene_ratio", "combined_score", "adjusted_p_value",
+                    "term_count", "term_depth"],
+                ascending=[False, False, True, False, False],
+            ).head(top_n)
+        cluster_data = cluster_data.iloc[::-1]
+        all_data.append(cluster_data)
 
-    # Create the plot
-    fig, ax = plt.subplots(figsize=plotsize)
+    all_ratios = np.concatenate([d["gene_ratio"].values for d in all_data])
+    x_pad = (all_ratios.max() - all_ratios.min()) * 0.15 or 0.05
+    xlim = (all_ratios.min() - x_pad, all_ratios.max() + x_pad)
 
-    # Create scatter plot
-    scatter = ax.scatter(
-        cluster_data["gene_ratio"],  # X-axis
-        cluster_data["representative_term"],  # Y-axis
-        s=cluster_data["term_count"] * 50,  # Dot size by term count
-        c=cluster_data["adjusted_p_value"],  # Color by -log10(p-value)
-        cmap=cmap_blue_to_red,
-        alpha=0.8,
-        edgecolors="black",
-        linewidth=0.6,
-    )
+    all_pvals = np.concatenate([d["adjusted_p_value"].values for d in all_data])
+    vmin, vmax = all_pvals.min(), all_pvals.max()
 
-    # Ensure grid is behind the data
-    ax.set_axisbelow(True)
-    ax.grid(True, linestyle="--", alpha=0.4)
+    main_axes = []
+    for i, (cluster, cluster_data) in enumerate(zip(clusters, all_data)):
+        ax_top = top - i * (ax_height_frac + hspace_frac)
+        ax_bottom = ax_top - ax_height_frac
 
-    # Keep only horizontal margin; minimize vertical gap
-    ax.margins(x=0.15, y=ymargin)
-    ax.set_ylim(ax.get_ylim()[0] + 0.1, ax.get_ylim()[1] - 0.1)
+        # Fixed physical size box -- identical in inches for n=1 or n=2
+        ax = fig.add_axes([left, ax_bottom, ax_width_frac, ax_height_frac])
+        main_axes.append(ax)
 
-    # Customize the plot
-    ax.set_xlabel("Gene Ratio", fontsize=12)
-    ax.set_ylabel("Representative Term", fontsize=12)
-    ax.set_title(f"GO Term Groups - Cluster {cluster}", fontsize=14, fontweight="bold")
-
-    # Add smaller colorbar
-    cbar = plt.colorbar(scatter, ax=ax, shrink=0.6, aspect=20)
-    cbar.set_label("Adjusted P-Value", fontsize=10)
-
-    # Legend for dot sizes (dynamic scaling)
-    actual_counts = sorted(cluster_data["term_count"].unique())
-    if len(actual_counts) > 3:
-        legend_sizes = [
-            actual_counts[0],
-            actual_counts[len(actual_counts) // 2],
-            actual_counts[-1],
-        ]
-    else:
-        legend_sizes = actual_counts
-
-    size_labels = [f"{s} terms" for s in legend_sizes]
-
-    # Compute mean dot size to scale legend elements
-    mean_dot_size = np.mean(cluster_data["term_count"]) * 50
-
-    # Dynamic legend scaling
-    if mean_dot_size < 100:
-        legend_scale = 1.0
-        handleheight = 1.5
-        labelspacing = 0.8
-    elif mean_dot_size < 300:
-        legend_scale = 0.8
-        handleheight = 2.0
-        labelspacing = 1.0
-    else:
-        legend_scale = 0.6
-        handleheight = 2.5
-        labelspacing = 1.2
-
-    legend_elements = [
-        plt.scatter(
-            [],
-            [],
-            s=s * 50 * legend_scale,
-            c="gray",
-            alpha=0.7,
+        scatter = ax.scatter(
+            cluster_data["gene_ratio"],
+            cluster_data["representative_term"],
+            s=cluster_data["term_count"] * 50,
+            c=cluster_data["adjusted_p_value"],
+            cmap=cmap_blue_to_red,
+            vmin=vmin,
+            vmax=vmax,
+            alpha=0.8,
             edgecolors="black",
-            linewidth=0.5,
+            linewidth=0.6,
         )
-        for s in legend_sizes
-    ]
 
-    size_legend = ax.legend(
-        legend_elements,
-        size_labels,
-        title="Term Count",
-        loc="center left",
-        bbox_to_anchor=legend_location,
-        frameon=True,
-        handleheight=handleheight,
-        labelspacing=labelspacing,
-        borderpad=1.0,
-    )
+        ax.set_axisbelow(True)
+        ax.grid(True, linestyle="--", alpha=0.4)
+        ax.margins(y=ymargin)
+        ax.set_xlim(xlim)
+        ax.set_ylim(ax.get_ylim()[0] + 0.1, ax.get_ylim()[1] - 0.1)
+        ax.set_ylabel("Representative Term", fontsize=12)
 
-    plt.tight_layout()
-    plt.subplots_adjust(right=0.8)
+        if i == 0:
+            ax.set_title(f"GO Term Groups - Cluster {cluster}", fontsize=14, fontweight="bold")
+
+        cax = fig.add_axes([cbar_left, ax_bottom, cbar_width, ax_height_frac])
+        cbar = fig.colorbar(scatter, cax=cax)
+        cbar.set_label("Adjusted P-Value", fontsize=10)
+
+        actual_counts = sorted(cluster_data["term_count"].unique())
+        if len(actual_counts) > 3:
+            legend_sizes = [actual_counts[0], actual_counts[len(actual_counts) // 2], actual_counts[-1]]
+        else:
+            legend_sizes = actual_counts
+        size_labels = [f"{s} terms" for s in legend_sizes]
+
+        legend_elements = [
+            plt.scatter([], [], s=80, c="gray", alpha=0.7, edgecolors="black", linewidth=0.5)
+            for _ in legend_sizes
+        ]
+        ax.legend(
+            legend_elements,
+            size_labels,
+            title="Term Count",
+            loc="center left",
+            bbox_to_anchor=legend_location,
+            frameon=True,
+            handleheight=1.5,
+            labelspacing=0.8,
+            borderpad=1.0,
+        )
+
+    main_axes[-1].set_xlabel("Gene Ratio", fontsize=12)
+    if n == 2:
+        main_axes[0].tick_params(labelbottom=False)
 
     if save:
-        plt.savefig(
-            SAVE_DIR / f"{cluster}_grouped_go_terms_top_10.pdf",
-            format="pdf",
-            bbox_inches="tight",
-        )
+        name = "_".join(str(c) for c in clusters)
+        fig.savefig(SAVE_DIR / f"{name}_grouped_go_terms_top_10.pdf",
+                    format="pdf", bbox_inches="tight")
 
     plt.show()
 

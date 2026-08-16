@@ -450,3 +450,62 @@ def timeit(func):
         return result
 
     return timeit_wrapper
+
+
+def rank_ligand_concentrations(df, ligands):
+    """
+    Rank ligand concentrations and assign integer ranks.
+    """
+    df = df.copy()
+    df["ranked_conc"] = np.nan
+
+    # Always handle controls first
+    ctrl_mask = df["ligand"].astype(str).str.startswith("CTRL")
+    df.loc[ctrl_mask, "ranked_conc"] = 0
+
+    for lig in ligands:
+        if lig.startswith("CTRL"):
+            continue
+
+        ligand_mask = df["ligand"] == lig
+        if lig in ["6HR-BMP4", "6HR-BMP9"]:
+            df.loc[ligand_mask, "ranked_conc"] = 8
+        else:
+            df.loc[ligand_mask, "ranked_conc"] = (
+                df.loc[ligand_mask, "concentration"].rank(method="dense", ascending=True)
+            )
+
+    df["ranked_conc"] = df["ranked_conc"].astype(int)
+    df.drop(columns=["concentration"], inplace=True)
+
+    return df
+
+
+def remove_cell_barcodes_from_index(
+    df: pd.DataFrame,
+    barcode_suffix: str = r"_[ACGTN]{8,}\d+$",
+    inplace: bool = True,
+    verbose: bool = True,
+) -> pd.DataFrame:
+    """
+    Check whether index values end with a cell barcode suffix.
+    If yes, remove only that suffix; if not, leave index unchanged.
+    """
+    target = df if inplace else df.copy()
+    idx = target.index.astype(str)
+
+    has_barcode = idx.str.contains(barcode_suffix, regex=True)
+    n_matches = int(has_barcode.sum())
+
+    if verbose:
+        print(f"Rows with barcode suffix: {n_matches} / {len(idx)}")
+
+    if n_matches > 0:
+        target.index = idx.str.replace(barcode_suffix, "", regex=True)
+        if verbose:
+            print("Barcode suffix removed from matching index values.")
+    else:
+        if verbose:
+            print("No barcode suffix detected. Index unchanged.")
+
+    return target

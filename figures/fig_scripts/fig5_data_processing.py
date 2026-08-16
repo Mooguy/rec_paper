@@ -260,33 +260,6 @@ def remove_lower_duplicates(adata):
 
     return adata_merged
 
-
-# def remove_lower_duplicates(adata):
-#     before_shape = adata.shape
-#     df = pd.DataFrame(
-#         adata.X.toarray(), index=adata.obs_names, columns=adata.var["gene_name"]
-#     )
-
-#     duplicate_gene_count = int(df.columns.duplicated().sum())
-
-#     # Merge duplicated gene columns by summing them
-#     merged_df = df.T.groupby(level=0, sort=False).sum().T
-
-#     # Rebuild AnnData with unique gene names
-#     new_var = pd.DataFrame(index=merged_df.columns)
-#     new_var["gene_name"] = merged_df.columns
-
-#     _print_filter_summary(
-#         "Duplicate gene merging summary:",
-#         removed=duplicate_gene_count,
-#         retained=merged_df.shape[1],
-#         result_shape=merged_df.shape,
-#         noun="genes",
-#     )
-#     _print_shape_change("  Gene matrix shape change:", before_shape, merged_df.shape)
-
-#     return ad.AnnData(X=merged_df.values, obs=adata.obs.copy(), var=new_var)
-
 def seperate_h2b(adata, DATA_FOLDER=DATA_SAVE_DIR, save=False):
     before_shape = adata.shape
     h2b_ind = np.where(adata.var_names == "H2BCITRINE")[0]

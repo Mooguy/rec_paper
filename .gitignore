@@ -11,6 +11,7 @@ archive/
 
 # --- Results & Figures ---
 figures/panels/
+claude/
 
 # --- Models (Exclude trained weights and massive logs) ---
 models/
@@ -40,6 +41,10 @@ dist/
 scripts/shell/*.log
 scripts/shell/*.out
 scripts/shell/*.err
+
+# --- Test & Claude folders ---
+claude/
+test/
 
 # --- Environment & IDEs ---
 .ipynb_checkpoints/
